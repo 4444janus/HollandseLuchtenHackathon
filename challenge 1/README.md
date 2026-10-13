@@ -63,7 +63,11 @@ AI (coding) assistants and vibe coding are allowed, as long as teams disclose cl
 - Test your anomaly scores on known faulty sensors from historical data
 - Involve potential end-users (residents) in evaluating your communication strategy
 
+
 ## Metadata
+
+## copyright
+
 ---
 
 [Back to main README](../README.md)

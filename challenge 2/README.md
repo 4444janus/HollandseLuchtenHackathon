@@ -53,6 +53,7 @@ Will be added later
 ## Use of tools and generative AI
 AI (coding) assistants and vibe coding are allowed, as long as teams disclose clearly on where they did and did not use them. We encourage the use of such tools, but also address that teams should be able to explain and validate important parts of their solutions themselves.  
 
+## Metadata
 
 ## Resources
 
@@ -68,6 +69,8 @@ AI (coding) assistants and vibe coding are allowed, as long as teams disclose cl
 - Create clear visualizations showing "normal" vs. "anomalous" patterns
 - Test whether your system can identify known pollution sources
 
+
+## copyright
 ---
 
 [Back to main README](../README.md)
