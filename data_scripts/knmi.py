@@ -513,6 +513,9 @@ def run_fetch_from_sensor_metadata(args: argparse.Namespace, api_key: str) -> No
 		if not sensor_id:
 			continue
 
+		sensor_lat = _to_float(row.get("latitude"))
+		sensor_lon = _to_float(row.get("longitude"))
+
 		# --- Resolve KNMI station: prefer knmicode column over nearest-station snap ---
 		knmicode = (row.get("knmicode") or "").strip()
 		target_station: Optional[StationInfo] = None
@@ -530,19 +533,21 @@ def run_fetch_from_sensor_metadata(args: argparse.Namespace, api_key: str) -> No
 				print(f"  Warning: sensor {sensor_id} knmicode={knmicode} not found in station list; falling back to nearest.")
 
 		if target_station is None:
-			lat = _to_float(row.get("latitude"))
-			lon = _to_float(row.get("longitude"))
-			if lat is None or lon is None:
+			if sensor_lat is None or sensor_lon is None:
 				print(f"  Skipping sensor {sensor_id}: no knmicode and no coordinates available.")
 				continue
-			target_station = _nearest_station(stations, lat, lon)
+			target_station = _nearest_station(stations, sensor_lat, sensor_lon)
 			if target_station is None:
 				print(f"  Warning: no KNMI station found for sensor {sensor_id}; skipping.")
 				continue
-			dist_km = _haversine_km(lat, lon, target_station.lat, target_station.lon)
+			dist_km = _haversine_km(sensor_lat, sensor_lon, target_station.lat, target_station.lon)
 			if args.max_station_distance_km is not None and dist_km > args.max_station_distance_km:
 				print(f"  Skipping sensor {sensor_id}: nearest station {target_station.name} is {dist_km:.1f} km away (limit {args.max_station_distance_km} km).")
 				continue
+		else:
+			dist_km = None
+			if sensor_lat is not None and sensor_lon is not None:
+				dist_km = _haversine_km(sensor_lat, sensor_lon, target_station.lat, target_station.lon)
 
 		nearest = target_station
 
@@ -586,7 +591,10 @@ def run_fetch_from_sensor_metadata(args: argparse.Namespace, api_key: str) -> No
 				)
 				all_samples.append(relabeled)
 			processed += 1
-			print(f"  sensor {sensor_id} -> station {nearest.name} ({dist_km:.1f} km)  obs={len(result['wind_samples'])}")
+			if dist_km is None:
+				print(f"  sensor {sensor_id} -> station {nearest.name}  obs={len(result['wind_samples'])}")
+			else:
+				print(f"  sensor {sensor_id} -> station {nearest.name} ({dist_km:.1f} km)  obs={len(result['wind_samples'])}")
 		except ApiRequestError as exc:
 			print(f"  Warning: sensor {sensor_id} / station {nearest.name} failed: HTTP {exc.status_code} {exc.response_body[:200]}")
 		except Exception as exc:  # pylint: disable=broad-except

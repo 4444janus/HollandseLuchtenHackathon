@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -38,20 +39,64 @@ def _to_float(v: Any) -> Optional[float]:
         return None
 
 
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _knmi_station_id_from_code(knmicode: str) -> Optional[str]:
+    text = (knmicode or "").strip()
+    if not text:
+        return None
+    numeric = text.replace("knmi_", "").strip()
+    if not numeric.isdigit():
+        return None
+    # Most KNMI station IDs in EDR locations endpoint use this prefix.
+    return f"0-20000-0-0{numeric}"
+
+
+def _load_knmi_station_coords(path: Path) -> Dict[str, tuple[float, float]]:
+    coords: Dict[str, tuple[float, float]] = {}
+    if not path.exists():
+        return coords
+
+    with path.open("r", encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            sid = (row.get("station_id") or "").strip()
+            lat = _to_float(row.get("lat"))
+            lon = _to_float(row.get("lon"))
+            if sid and lat is not None and lon is not None:
+                coords[sid] = (lat, lon)
+    return coords
+
+
 def fetch_thing_enrichment(
     base_url: str,
     thing_id: str,
     sleep_s: float,
 ) -> Dict[str, Any]:
-    """Return dict with lat, lon, knmicode for a Thing ID."""
-    result: Dict[str, Any] = {"lat": None, "lon": None, "knmicode": ""}
+    """Return dict with lat, lon and key Thing properties for a Thing ID."""
+    result: Dict[str, Any] = {
+        "lat": None,
+        "lon": None,
+        "knmicode": "",
+        "intended_reference_station_id": "",
+        "municipality": "",
+    }
 
     # Fetch Thing properties for knmicode.
     thing_url = f"{base_url}/Things({thing_id})?$select=properties"
     thing_data = _get(thing_url)
     props = thing_data.get("properties") or {}
     knmicode = str(props.get("knmicode") or "").strip()
+    ref_station = str(props.get("pm25closecode") or "").strip()
+    municipality = str(props.get("gemeente") or "").strip()
     result["knmicode"] = knmicode
+    result["intended_reference_station_id"] = ref_station
+    result["municipality"] = municipality
 
     if sleep_s > 0:
         time.sleep(sleep_s)
@@ -70,7 +115,7 @@ def fetch_thing_enrichment(
     return result
 
 
-def enrich(metadata_path: Path, base_url: str, sleep_s: float) -> None:
+def enrich(metadata_path: Path, base_url: str, sleep_s: float, knmi_stations_csv: Optional[Path]) -> None:
     with metadata_path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         fieldnames: List[str] = list(reader.fieldnames or [])
@@ -80,14 +125,15 @@ def enrich(metadata_path: Path, base_url: str, sleep_s: float) -> None:
         print("Metadata file is empty.")
         return
 
-    # Add knmicode column if missing.
-    if "knmicode" not in fieldnames:
-        # Insert after intended_reference_station_id if present, else append.
-        try:
-            idx = fieldnames.index("intended_reference_station_id")
-            fieldnames.insert(idx + 1, "knmicode")
-        except ValueError:
-            fieldnames.append("knmicode")
+    # Ensure target enrichment columns exist.
+    for col in [
+        "intended_reference_station_id",
+        "knmicode",
+        "municipality",
+        "distance_to_knmi_km",
+    ]:
+        if col not in fieldnames:
+            fieldnames.append(col)
 
     enriched = 0
     for i, row in enumerate(rows):
@@ -97,7 +143,8 @@ def enrich(metadata_path: Path, base_url: str, sleep_s: float) -> None:
 
         already_has_coords = (row.get("latitude") or "").strip() and (row.get("longitude") or "").strip()
         already_has_knmi = (row.get("knmicode") or "").strip()
-        if already_has_coords and already_has_knmi:
+        already_has_ref = (row.get("intended_reference_station_id") or "").strip()
+        if already_has_coords and already_has_knmi and already_has_ref:
             continue  # nothing to fill in
 
         print(f"  Enriching sensor {sensor_id} ({i + 1}/{len(rows)})...")
@@ -114,11 +161,30 @@ def enrich(metadata_path: Path, base_url: str, sleep_s: float) -> None:
                 row["longitude"] = info["lon"]
         if not already_has_knmi and info["knmicode"]:
             row["knmicode"] = info["knmicode"]
+        if not already_has_ref and info["intended_reference_station_id"]:
+            row["intended_reference_station_id"] = info["intended_reference_station_id"]
+        if not (row.get("municipality") or "").strip() and info["municipality"]:
+            row["municipality"] = info["municipality"]
 
         enriched += 1
 
         if sleep_s > 0:
             time.sleep(sleep_s)
+
+    # Optional: calculate distance to assigned KNMI station when station list is available.
+    knmi_station_map = _load_knmi_station_coords(knmi_stations_csv) if knmi_stations_csv else {}
+    if knmi_station_map:
+        for row in rows:
+            lat = _to_float(row.get("latitude"))
+            lon = _to_float(row.get("longitude"))
+            knmi_code = (row.get("knmicode") or "").strip()
+            if lat is None or lon is None or not knmi_code:
+                continue
+
+            station_id = _knmi_station_id_from_code(knmi_code)
+            if station_id and station_id in knmi_station_map:
+                s_lat, s_lon = knmi_station_map[station_id]
+                row["distance_to_knmi_km"] = round(_haversine_km(lat, lon, s_lat, s_lon), 2)
 
     # Back up original.
     bak_path = metadata_path.with_suffix(".csv.bak")
@@ -131,7 +197,10 @@ def enrich(metadata_path: Path, base_url: str, sleep_s: float) -> None:
         writer.writeheader()
         for row in rows:
             # Ensure all new columns have a default.
+            row.setdefault("intended_reference_station_id", "")
             row.setdefault("knmicode", "")
+            row.setdefault("municipality", "")
+            row.setdefault("distance_to_knmi_km", "")
             writer.writerow(row)
 
     print(f"Enriched {enriched}/{len(rows)} sensors.")
@@ -143,6 +212,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--metadata", default="data_exports/full/sensor_metadata.csv")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--sleep-s", type=float, default=0.15)
+    parser.add_argument(
+        "--knmi-stations-csv",
+        default="data_exports/knmi/knmi_stations.csv",
+        help="Optional KNMI stations CSV to derive distance_to_knmi_km",
+    )
     return parser
 
 
@@ -152,7 +226,8 @@ def main() -> int:
     if not path.exists():
         print(f"Metadata file not found: {path}")
         return 2
-    enrich(path, base_url=args.base_url, sleep_s=args.sleep_s)
+    knmi_stations_csv = Path(args.knmi_stations_csv) if args.knmi_stations_csv else None
+    enrich(path, base_url=args.base_url, sleep_s=args.sleep_s, knmi_stations_csv=knmi_stations_csv)
     return 0
 
 

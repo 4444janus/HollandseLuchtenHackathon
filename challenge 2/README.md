@@ -2,83 +2,63 @@
 
 ## Challenge Description
 
-This challenge leverages the power of visual analysis and unsupervised learning to identify geographic pollution hotspots over time. Previous analyses have shown that pollution roses (wind roses colored by pollution concentration) provide clear and intuitive insights into air quality patterns.
+Hollandse Luchten collects large amounts of sensor data on air quality. Residents often question the source of pollution they experience. Organizations such as the RIVM and GGD often use wind roses to detect these local sources. A wind rose shows the direction, speed and frequency of the wind captured at that sensor location. By combining wind and air pollution data you can create a pollution rose. 
+The plot displayed shows a weighted concentration rose. It shows, for each wind direction, the share (in %) of that direction in the overall average particulate matter concentration. The average concentration for each wind direction is weighted by how often that wind direction occurs. When making a wind rose, using different choices for timesteps, such as daily, weekly or for example very specific time periods will have a big impact on the resulting pollution rose. It is also possible to plot multiple wind roses from different locations together to obtain an even clearer picture of where hotspots may be located.
+Your challenge is to create a system that automatically analyses sequences of pollution roses over time to detect unusual hotspots and support source identification.
 
-However, generating and analyzing these visualizations is time-consuming and dependent on analysis granularity. **Your challenge is to create an AI system that automatically analyzes sequences of pollution roses over time to detect unusual hotspots and support source identification.**
 
 ## Problem Statement
 
 Pollution roses are powerful tools for understanding local air quality patterns in relation to wind direction and speed. By visualizing these roses over extended time periods on a geographic map, you essentially create a "video" or time-series of frames showing how pollution patterns evolve.
+Therefore, in this challenge you will focus on:
+1.	Using data science and AI techniques to automatically detect unusual patterns and potential pollution hotspots in sequences of pollution roses.
+2.	Developing a scoring metric that indicates how strong and unusual a hotspot is, and how certain the system is about the result.
+3.	Locating identified hotspots geographically and relating them to likely wind directions and possible source areas.
+4.	Communicating the results to residents in a clear and transparent manner, including why a location or direction is identified as a potential hotspot.
+5.	Bonus: indicating which additional data, analyses or follow-up actions are needed to confirm a potential pollution source.
 
-Your task is to:
-1. Process temporal sequences of pollution roses as visual data
-2. Apply unsupervised learning to identify anomalous hotspots
-3. Locate these hotspots geographically on a map
-4. Provide insights into potential pollution sources
-5. Scale analysis to much longer periods than manual approaches allow
 
-## Approach
+## Possible techniques
 
-Modern AI architectures designed for visual encoding can analyze pollution rose sequences to identify patterns:
-- **Computer Vision**: Convolutional neural networks (CNNs) for spatial pattern recognition
-- **Unsupervised Learning**: Clustering algorithms (K-means, DBSCAN) on visual features
-- **Autoencoders**: Learn normal pollution rose patterns and flag deviations
-- **Temporal Analysis**: Recurrent neural networks (RNNs) or 3D CNNs for sequence analysis
-- **Feature Extraction**: Custom metrics derived from wind rose properties (direction concentration, intensity patterns)
 
-## Required Data
+Teams may use statistical, machine-learning, deep learning and/or hybrid methods. For example, computer-vision techniques can be used to recognize spatial patterns in pollution roses, while unsupervised learning can help identify unusual patterns or deviations from normal conditions. Temporal analysis can be used to assess how pollution patterns develop over consecutive time periods.
+A simple and well-validated approach may be more valuable than a complex model that is difficult to explain or verify. We expect teams to substantiate their technical choices and considerations using validation metrics, research or other evidence.
 
-You have two options (or a combination):
 
-1. **Pre-prepared pollution roses**: Pre-computed pollution roses for different time periods
-   - Varies temporal granularity (hourly, daily, weekly aggregations)
-   - Pre-rendered as images or data representations
+## Which data is available?
 
-2. **Raw sensor data + generation toolkit**: 
-   - Sensor measurements with wind direction and speed data
-   - Code and formulas to generate pollution roses
-   - Allows experimentation with different timeframe lengths
 
-**Additional data**:
-- Geographic coordinates of sensor locations
-- Map data for hotspot visualization
-- Reference data for validation (if available)
+During the hackathon we will supply you with several datasets for this challenge:
+·	Time-series data: hourly PM2.5 measurements from more than 100 Hollandse Luchten sensors, some ranging several years.
+·	Reference measurements: Official reference station data producing hourly measurements, to possibly compare the Hollandse Luchten sensors with.
+·	Metadata on sensors: information about the sensor location, type, measurement communities, and intended reference stations.
+·	Weather data from the Dutch KNMI, for example temperature and humidity.
+·	Some example pollution roses
 
-## Key Questions to Address
-
-1. **Temporal Granularity**: How does the timeframe length (e.g., hourly vs. daily aggregation) affect hotspot detection?
-2. **Visual Encoding**: What visual features best indicate anomalous pollution patterns?
-3. **Unsupervised Learning**: Which clustering or anomaly detection methods work best on visual wind rose data?
-4. **Geographic Mapping**: How do you translate detected anomalies back to geographic locations and source regions?
-5. **Interpretability**: Can you explain *what* makes a hotspot anomalous? Is it a new pollution source, wind pattern shift, or other factors?
-6. **Scaling**: How well does your approach scale to months or years of data?
-
-## Success Criteria
-
-- Functional system that processes temporal sequences of pollution data
-- Visual or geographic output showing detected hotspots
-- Validation that detected hotspots correspond to known pollution events or sources
-- Ability to analyze extended time periods (weeks to months) efficiently
-- Clear interpretation of what constitutes an anomaly
 
 ## Deliverables
 
-1. **Visual Analysis System**: Code implementing your hotspot detection approach
-2. **Hotspot Visualizations**: Maps showing detected anomalous hotspots with confidence levels
-3. **Temporal Analysis**: Demonstration of how patterns evolve over your chosen time period
-4. **Source Investigation**: Proposed mechanisms for identifying potential pollution sources
-5. **Performance Report**: Analysis of different temporal granularities and their effectiveness
-6. **Presentation**: 10-minute demonstration with interactive visualizations
+
+Your submission should at least contain:
+1)	The Github repository with any used code and/or examples.
+2)	The presentation of your solution.
+Every team is expected to present their solution to our jury.
+
+
+## Jury criteria
+
+Will be added later
+
+
+## Use of tools and generative AI
+AI (coding) assistants and vibe coding are allowed, as long as teams disclose clearly on where they did and did not use them. We encourage the use of such tools, but also address that teams should be able to explain and validate important parts of their solutions themselves.  
+
 
 ## Resources
 
-- Provided data dump with sensor measurements and wind direction/speed data
-- Python libraries: matplotlib, folium, scikit-learn, tensorflow/keras, opencv
-- Visualization libraries: plotly, geopandas for geographic visualization
-- Pollution rose generation libraries (if needed)
-- Optional: Pre-rendered pollution rose images if visual-only approach preferred
 
-## Tips
+
+## Tips / links
 
 - Start by visualizing a single time-series of pollution roses to understand the data
 - Experiment with different temporal granularities to find the optimal balance
