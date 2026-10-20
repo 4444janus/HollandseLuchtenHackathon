@@ -55,7 +55,7 @@ This is provided to allow participants to focus on analysis and development rath
 ## Contact
 
 For questions about the hackathon, please reach out to the organizing committee. 
-#TODO
+Janus Jansen - provincie Noord-Holland - janus.jansen@noord-holland.nl
 
 ---
 
